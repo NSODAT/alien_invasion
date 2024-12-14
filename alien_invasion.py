@@ -6,6 +6,15 @@ from bullet import Bullet
 from alien import Alien
 from menu import Menu
 from scoreboard import Scoreboard
+import pickle
+
+def save_game(data, filename="savefile.pkl"):
+    with open(filename, "wb") as f:
+        pickle.dump(data, f)
+
+def load_game(filename="savefile.pkl"):
+    with open(filename, "rb") as f:
+        return pickle.load(f)
 
 def create_aliens(screen, rows, columns, section_height):
     aliens = []
@@ -17,6 +26,11 @@ def create_aliens(screen, rows, columns, section_height):
 
 def run_game():
     pygame.init()
+    pygame.mixer.init()
+    laser_sound = pygame.mixer.Sound("resources/laser.wav")
+    explosion_sound = pygame.mixer.Sound("resources/explosion.wav")
+    lose_life_sound = pygame.mixer.Sound("resources/lose_life.wav")
+    game_over_sound = pygame.mixer.Sound("resources/game_over.wav")
     settings = Settings()
     screen = pygame.display.set_mode((settings.screen_width, settings.screen_height))
     pygame.display.set_caption("Alien Invasion")
@@ -65,6 +79,7 @@ def run_game():
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         bullets.append(Bullet(screen, ship))
+                        laser_sound.play()
 
             ship.update(pygame.mouse.get_pos())
 
@@ -77,6 +92,7 @@ def run_game():
                 for alien in aliens[:]:
                     if bullet.rect.colliderect(alien.rect):
                         aliens.remove(alien)
+                        explosion_sound.play()
                         bullets.remove(bullet)
                         scoreboard.update_score(50)
                         break
@@ -95,6 +111,7 @@ def run_game():
                     # Столкновение с пришельцем
                     lives -= 1
                     if lives == 0:
+                        game_over_sound.play()
                         game_active = False
                         show_menu = True
                         scoreboard.score = 0  # Обнуляем счёт при потере всех жизней
@@ -126,6 +143,17 @@ def run_game():
                 font = pygame.font.SysFont(None, 48)
                 level_text = font.render("Level Up!", True, (255, 255, 0))
                 screen.blit(level_text, (settings.screen_width // 2 - level_text.get_width() // 2, 100))
+
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_s:  # S для сохранения
+                    game_data = {"level": level, "score": scoreboard.score, "lives": lives}
+                    save_game(game_data)
+                elif event.key == pygame.K_l:  # L для загрузки
+                    game_data = load_game()
+                    level = game_data["level"]
+                    scoreboard.score = game_data["score"]
+                    lives = game_data["lives"]
 
             pygame.display.flip()
 
